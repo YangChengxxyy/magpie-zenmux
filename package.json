@@ -1,6 +1,6 @@
 {
   "name": "magpie-zenmux-plan",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "ZenMux Builder Plan subscriptions (Starter, Max, Ultra) in OpenCode and magpie",
   "type": "module",
   "main": "./index.mjs",
