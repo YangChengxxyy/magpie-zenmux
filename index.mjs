@@ -1,8 +1,9 @@
 // ZenMux Builder Plan (zenmux.ai's subscription) as a magpie / OpenCode
 // provider plugin.
 //
-// Requests go with the plan's own API key (sk-ss-v1-…) to ZenMux's
-// OpenAI-compatible API, which takes them from the plan's Flows. The plan's
+// Requests go with the plan's own API key (sk-ss-v1-…): Claude models to
+// ZenMux's Anthropic Messages API, the rest to its OpenAI-compatible API,
+// which take them from the plan's Flows. The plan's
 // quota — the rolling 5-hour and 7-day windows, how much of each is used and
 // when each resets — is only told to a Management API key (sk-mg-v1-…), by
 // GET /api/v1/management/subscription/detail
@@ -12,9 +13,18 @@
 
 const ID = "zenmux-plan"
 const CHAT = "@ai-sdk/openai-compatible"
+const ANTHROPIC = "@ai-sdk/anthropic"
 
 // where ZenMux is; tests point it at their fake
-const SITE = { api: "https://zenmux.ai/api/v1" }
+const SITE = { api: "https://zenmux.ai/api/v1", anthropic: "https://zenmux.ai/api/anthropic/v1" }
+
+// a Claude — the name after its last '/' starting claude-, as magpie picks
+// them out for Anthropic Messages — goes by that API so its prompt cache is
+// built: a chat-completions ask carries no cache_control upstream, so its
+// cache reads stay 0
+const claude = (id) => String(id).split("/").pop().startsWith("claude")
+const npmOf = (id) => (claude(id) ? ANTHROPIC : CHAT)
+const urlOf = (id) => (claude(id) ? SITE.anthropic : SITE.api)
 
 const HOUR = 3600
 const TIERS = { free: "Free", pro: "Starter", starter: "Starter", max: "Max", ultra: "Ultra" }
@@ -30,6 +40,7 @@ const MODELS = [
 
 const configModel = (m) => ({
   name: m.name ?? m.id,
+  provider: { npm: npmOf(m.id), api: urlOf(m.id) },
   limit: { context: m.context ?? 0, output: m.output ?? 0 },
   ...(m.images ? { attachment: true, modalities: { input: ["text", "image"], output: ["text"] } } : {}),
   ...(m.reasoning ? { reasoning: true } : {}),
@@ -40,7 +51,7 @@ const runtimeModel = (m) => ({
   id: m.id,
   providerID: ID,
   name: m.name ?? m.id,
-  api: { id: m.id, url: SITE.api, npm: CHAT },
+  api: { id: m.id, url: urlOf(m.id), npm: npmOf(m.id) },
   status: "active",
   headers: {},
   options: {},
@@ -176,7 +187,9 @@ export async function ZenMuxPlanAuthPlugin() {
       async loader(getAuth) {
         const auth = await getAuth()
         if (auth?.type !== "api" || !auth.key) return {}
-        return { baseURL: SITE.api, apiKey: auth.key }
+        // no baseURL: the model's api.url picks the endpoint, which a
+        // loader's would win over and send Anthropic asks to the chat base
+        return { apiKey: auth.key }
       },
       // the plan, its end and its 5-hour and 7-day windows; the window
       // resets a plan gets each month aren't told by the API, so aren't shown
@@ -212,4 +225,4 @@ export async function ZenMuxPlanAuthPlugin() {
 }
 
 // for tests
-export const _internal = { ID, SITE, MODELS, parseModels, usageOf, windowOf, managementKey }
+export const _internal = { ID, SITE, MODELS, parseModels, usageOf, windowOf, managementKey, claude, npmOf, urlOf }

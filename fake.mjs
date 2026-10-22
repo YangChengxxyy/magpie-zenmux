@@ -16,14 +16,17 @@ export function fakeZenMux() {
       return h(req)
     },
   })
-  const was = _internal.SITE.api
+  const was = { ..._internal.SITE }
   _internal.SITE.api = `http://127.0.0.1:${server.port}/api/v1`
+  _internal.SITE.anthropic = `http://127.0.0.1:${server.port}/api/anthropic/v1`
   return {
+    api: `http://127.0.0.1:${server.port}`,
     seen,
     route: (key, h) => routes.set(key, h),
     close() {
       server.stop(true)
-      _internal.SITE.api = was
+      _internal.SITE.api = was.api
+      _internal.SITE.anthropic = was.anthropic
     },
   }
 }
