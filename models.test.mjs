@@ -11,10 +11,10 @@ afterEach(() => {
   f = undefined
 })
 
-test("the loader sends the plan's key to the API", async () => {
+test("the loader sends the plan's key, its base left to the model's api", async () => {
   const hooks = await ZenMuxPlanAuthPlugin({ client: {} })
   expect(await hooks.auth.loader(async () => ({ type: "api", key: "sk-ss-v1-plan", metadata: { managementKey: "sk-mg-v1-x" } })))
-    .toEqual({ baseURL: "https://zenmux.ai/api/v1", apiKey: "sk-ss-v1-plan" })
+    .toEqual({ apiKey: "sk-ss-v1-plan" })
   expect(await hooks.auth.loader(async () => undefined)).toEqual({})
 })
 
@@ -28,21 +28,23 @@ test("one api method that asks for the Management key", async () => {
   expect(m.prompts[0].validate("sk-ss-v1-abc")).toContain("sk-mg-")
 })
 
-test("the live list keeps text models", async () => {
+test("the live list keeps text models, a Claude on Anthropic Messages", async () => {
   f = fakeZenMux()
   f.route("GET /api/v1/models", () => json({ data: [
     { id: "anthropic/claude-sonnet-5", display_name: "Anthropic: Claude Sonnet 5", context_length: 1000000, max_tokens: 64000, input_modalities: ["text", "image"], output_modalities: ["text"], capabilities: { reasoning: true } },
+    { id: "openai/gpt-5.5", display_name: "OpenAI: GPT-5.5", context_length: 400000, max_tokens: 128000, input_modalities: ["text"], output_modalities: ["text"] },
     { id: "inclusionai/llada-image", display_name: "LLaDA-Image", input_modalities: ["text"], output_modalities: ["image"] },
   ] }))
   const hooks = await ZenMuxPlanAuthPlugin({ client: {} })
   const ms = await hooks.provider.models({ models: { kept: {} } })
-  expect(Object.keys(ms)).toEqual(["anthropic/claude-sonnet-5"])
+  expect(Object.keys(ms)).toEqual(["anthropic/claude-sonnet-5", "openai/gpt-5.5"])
   const m = ms["anthropic/claude-sonnet-5"]
   expect(m.providerID).toBe("zenmux-plan")
-  expect(m.api.npm).toBe("@ai-sdk/openai-compatible")
+  expect(m.api).toEqual({ id: "anthropic/claude-sonnet-5", url: f.api + "/api/anthropic/v1", npm: "@ai-sdk/anthropic" })
   expect(m.limit).toEqual({ context: 1000000, output: 64000 })
   expect(m.capabilities.reasoning).toBe(true)
   expect(m.capabilities.input.image).toBe(true)
+  expect(ms["openai/gpt-5.5"].api).toEqual({ id: "openai/gpt-5.5", url: f.api + "/api/v1", npm: "@ai-sdk/openai-compatible" })
 })
 
 test("a list ZenMux doesn't give keeps the configured one", async () => {
@@ -60,4 +62,8 @@ test("config adds the provider with its fallback models", async () => {
   const p = cfg.provider["zenmux-plan"]
   expect(p.npm).toBe("@ai-sdk/openai-compatible")
   expect(Object.keys(p.models).length).toBe(_internal.MODELS.length)
+  expect(p.models["anthropic/claude-sonnet-5"].provider)
+    .toEqual({ npm: "@ai-sdk/anthropic", api: "https://zenmux.ai/api/anthropic/v1" })
+  expect(p.models["openai/gpt-5.5"].provider)
+    .toEqual({ npm: "@ai-sdk/openai-compatible", api: "https://zenmux.ai/api/v1" })
 })
