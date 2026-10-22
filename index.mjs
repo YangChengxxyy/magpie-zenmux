@@ -5,7 +5,7 @@
 // ZenMux's Anthropic Messages API, the rest to its OpenAI-compatible API,
 // which take them from the plan's Flows. The plan's
 // quota — the rolling 5-hour and 7-day windows, how much of each is used and
-// when each resets — is only told to a Management API key (sk-mg-v1-…), by
+// when each resets — is only told to a Management API key (sk-mg…), by
 // GET /api/v1/management/subscription/detail
 // (https://zenmux.ai/docs/api/platform/subscription-detail.html). That key
 // is asked for at sign-in beside the plan's and kept in the account's
@@ -141,7 +141,7 @@ async function subscriptionDetail(key) {
     headers: { Authorization: "Bearer " + key, Accept: "application/json" },
   })
   if (res.status === 401 || res.status === 403) {
-    throw new Error("ZenMux turned the Management API key away (sk-mg-v1-…); sign in again with a valid one")
+    throw new Error("ZenMux turned the Management API key away (sk-mg…); sign in again with a valid one")
   }
   let body
   try {
@@ -198,7 +198,7 @@ export async function ZenMuxPlanAuthPlugin() {
         if (auth?.type !== "api" || !auth.key) return { error: "not signed in" }
         const key = managementKey(auth)
         // a usage read never marks the plan's key: it isn't the one asked
-        if (!key) return { error: "add a ZenMux Management API key (sk-mg-v1-…) to see the plan's quota", signIn: "kept" }
+        if (!key) return { error: "add a ZenMux Management API key (sk-mg…) to see the plan's quota", signIn: "kept" }
         try {
           return { ...usageOf(await subscriptionDetail(key)), signIn: "kept" }
         } catch (e) {
@@ -213,9 +213,10 @@ export async function ZenMuxPlanAuthPlugin() {
             {
               type: "text",
               key: "managementKey",
-              message: "ZenMux Management API key (sk-mg-v1-…), to read the plan's quota and resets; leave empty to skip",
-              placeholder: "sk-mg-v1-…",
-              validate: (v) => (!v || /^sk-mg-/.test(v.trim()) ? undefined : "a Management API key starts with sk-mg-"),
+              message: "ZenMux Management API key (sk-mg…), to read the plan's quota and resets; leave empty to skip",
+              placeholder: "sk-mg…",
+              // sk-mg… and the older sk-mg-… both count
+              validate: (v) => (!v || /^sk-mg/.test(v.trim()) ? undefined : "a Management API key starts with sk-mg"),
             },
           ],
         },

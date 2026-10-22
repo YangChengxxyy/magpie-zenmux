@@ -24,8 +24,9 @@ test("one api method that asks for the Management key", async () => {
   expect(m.type).toBe("api")
   expect(m.prompts[0].key).toBe("managementKey")
   expect(m.prompts[0].validate("")).toBeUndefined()
+  expect(m.prompts[0].validate("sk-mgabc")).toBeUndefined()
   expect(m.prompts[0].validate("sk-mg-v1-abc")).toBeUndefined()
-  expect(m.prompts[0].validate("sk-ss-v1-abc")).toContain("sk-mg-")
+  expect(m.prompts[0].validate("sk-ss-v1-abc")).toContain("sk-mg")
 })
 
 test("the live list keeps text models, a Claude on Anthropic Messages", async () => {
